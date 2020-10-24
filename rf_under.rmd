@@ -1,0 +1,13 @@
+# Here we train the random forest using the undersampled training set
+```{r}
+
+rf_under <- randomForest(condition ~ ., data=trainset_under, ntree = 500, mtry= 19, importance = T, nodesize = best_node)
+prediction_for_under <- predict(rf_under,testset[,-371])
+
+varImpPlot(rf_under, n.var = 5)
+ac_under <-mean(prediction_for_under == testset$condition)
+
+ac
+ac_under
+
+```
