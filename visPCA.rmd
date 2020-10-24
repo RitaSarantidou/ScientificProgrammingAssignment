@@ -1,0 +1,56 @@
+```{r}
+
+fviz_eig(ddf.pca)  # Visualize eigenvalues (scree plot). Show the percentage of variances explained by each principal component.
+
+groups <- df$condition
+fviz_pca_ind(ddf.pca,
+             col.ind = groups, # color by groups
+             palette = viridis(4),
+             addEllipses = TRUE, # Concentration ellipses
+             ellipse.type = "confidence",
+             legend.title = "Groups",
+             repel = TRUE
+             )
+```
+```{r}
+fviz_pca_var(ddf.pca,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+```
+
+```{r}
+set.seed(123)
+
+PCAcolors <- c(viridis(3))[as.integer(groups)]
+PCAscores <- ddf.pca$x
+PCAloadings <- ddf.pca$rotation
+
+par(mfrow=c(1,1))
+plot(PCAscores[,1:2],  # x and y data
+     pch=4,           # point shape
+     col=PCAcolors,    # point border color
+     bg=PCAcolors,     # point color
+     cex=1,          # point size
+     main="Scores"     # title of plot
+)
+
+legend("topright",                                # position of legend
+       legend=levels(groups),                       # legend display
+       pch=4,                                    # point shape
+       pt.bg=c("#440154FF", "#21908CFF", "#FDE725FF"),    # point colors
+       pt.cex=1.5,                                # point size
+       col = c("#440154FF", "#21908CFF", "#FDE725FF")    # point border color
+)
+
+plot(PCAloadings[,1:2],   # x and y data
+     pch=21,              # point shape
+     bg="black",          # point color
+     cex=0.1,               # point size
+     main="Loadings"      # title of plot
+)
+text(PCAloadings[,1:2],             # sets position of labels
+     labels=rownames(PCAloadings)   # print labels
+)
+```
