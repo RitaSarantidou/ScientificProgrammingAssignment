@@ -1,0 +1,51 @@
+```{r}
+set.seed(8)
+#Tuning mtry parameter 
+
+bestmtry_ada <- tuneRF(trainset_ADA, trainset_ADA$condition, mtryStart = 3, stepFactor=1.5, improve=1e-5, ntree=500)
+print(bestmtry_ada)
+```
+
+```{r}
+set.seed(9)
+
+# node<-c(1:10)
+ACC<-c()
+
+for (i in 1:10){
+   
+rf <- randomForest(condition ~ ., data=trainset_ADA, ntree = 500, mtry= 19, importance = T, nodesize = node[i])
+#rf <- rfcv(trainset, trainset$condition, cv.fold = 5)
+prediction_for_ada <- predict(rf,testset[,-371])
+ACC[i] <-mean(prediction_for_ada == testset$condition)
+}
+#acc
+
+best_n <- match(max(ACC),ACC) # to get the best node size
+
+
+
+rf_ada <- randomForest(condition ~ ., data=trainset_ADA, ntree = 500, mtry= 28, importance = T, nodesize=best_n)
+#rf <- rfcv(trainset, trainset$condition, cv.fold = 5)
+rf_ada
+
+varImpPlot(rf_ada, n.var = 5)
+
+prediction_for_ada <- predict(rf_ada,testset[,-371])
+#table(observed=testset_ADA$condition,predicted=prediction_for_ada)
+
+#  
+# testset$condition <- as.character(testset$condition)
+# 
+# testset$condition[testset$condition == 0]<-"bipolar"
+# testset$condition[testset$condition == 1]<-"normal"
+# testset$condition[testset$condition == 2]<-"schizophrenia"
+
+
+Accuracy_ada <- mean(prediction_for_ada == testset$condition)
+Accuracy_ada
+# Accuracy_rose <- mean(prediction_for_rose== testset_ROSE$condition)
+# Accuracy_rose
+
+
+```
