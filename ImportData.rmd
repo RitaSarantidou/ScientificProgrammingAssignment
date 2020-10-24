@@ -1,0 +1,35 @@
+Importing the dataset, and transposing it to get 546 rows(individuals) and 47283 columns (probes).
+In addition, import the individuals' info table (age,gender,condition, etc).
+
+```{r}
+d <- read.csv('Adjustedexpressionvalues.txt',row.names = 1, header = F)
+d <-t(d)
+
+# View(df) # observe the data frame
+# dim(df)  # observe the dimensions of the dataset
+
+individuals <- read.csv('datasets_451195_852422_E-MTAB-8018.sdrf.txt', sep = '')
+individuals$part.<- as.character(individuals$part.)
+
+ind1 <-individuals[,4:6]  # keep columns that contain individuals' ID, gender, and age
+ind <- cbind(ind1, individuals[,10]) # combine above with individuals' condition (bipolar, normal, scizophrenic)
+```
+
+
+Merge the two data frames, i.e. gene expressions and individuals' information
+```{r}
+data <- merge(x = ind, y = d , by.x = "Characteristics.individual.", by.y = "NaN", all = F)
+names(data)[names(data) == 'individuals[, 10]'] <- 'condition'
+
+data <- data[order(data$condition),] # sorting the data frame based on the individuals' condition
+sum(is.na(data))   # check how many missing values are in the data
+table(data$condition)
+
+data$condition <- as.character(data$condition)
+data$condition[data$condition == "schizoaffective"]<-"schizophrenia"
+#data[data$condition == "schizoaffective"]<-"schizophrenia"
+#table(data$condition)
+
+data$condition <- as.factor(data$condition)
+table(data$condition)
+```
