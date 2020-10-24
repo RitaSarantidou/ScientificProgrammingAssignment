@@ -1,0 +1,14 @@
+```{r}
+svm_ada <- svm(condition~.,
+                data = trainset_ADA,
+               type = "C-classification", kernel = "radial", gamma = tune_ada$best.parameters$gamma,
+               cost = tune_ada$best.parameters$cost,
+               probability = T,
+               cross = 5
+             )
+
+pred_svm_ada <- predict(svm_ada, testset)
+Accuracy_svm_ada <- mean(pred_svm_ada == testset$condition)
+Accuracy_svm_ada
+summary(svm_ada)
+```
