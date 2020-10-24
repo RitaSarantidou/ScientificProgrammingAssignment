@@ -23,3 +23,20 @@ set.seed(4)
 bestmtry <- tuneRF(trainset_ROSE, trainset_ROSE$condition, mtryStart = 3, stepFactor=1.5, improve=1e-5, ntree=500)
 print(bestmtry)
 ```
+```{r}
+set.seed(5)
+
+node<-c(1:10)
+acc<-c()
+
+for (i in 1:10){
+   
+rf <- randomForest(condition ~ ., data=trainset_ROSE, ntree = 500, mtry= 19, importance = T, nodesize = node[i])
+#rf <- rfcv(trainset, trainset$condition, cv.fold = 5)
+prediction_for_rose <- predict(rf,testset[,-371])
+acc[i] <-mean(prediction_for_rose == testset$condition)
+}
+#acc
+
+best_node <- match(max(acc),acc) # to get the best node size
+```
