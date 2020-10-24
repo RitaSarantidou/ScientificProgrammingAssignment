@@ -1,0 +1,25 @@
+Random Forest classification for ROSE created data
+Tuning parameters 
+
+```{r}
+# Using For loop to identify the right mtry for model
+set.seed(3)
+a=c()
+i=5
+for (i in 3:20) {
+  model <- randomForest(condition ~ ., data = trainset_ROSE, ntree = 500, mtry = i, importance = TRUE)
+  predValid <- predict(model, testset_ROSE, type = "class")
+  a[i-2] = mean(predValid == testset_ROSE$condition)
+}
+a
+
+plot(3:20 ,a)
+```
+
+```{r}
+#Tuning mtry parameter 
+
+set.seed(4)
+bestmtry <- tuneRF(trainset_ROSE, trainset_ROSE$condition, mtryStart = 3, stepFactor=1.5, improve=1e-5, ntree=500)
+print(bestmtry)
+```
