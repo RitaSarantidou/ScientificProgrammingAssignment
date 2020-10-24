@@ -1,0 +1,27 @@
+SVM tuning parameters
+```{r}
+# Tune SVM cost and gamma parameters for ROSE generated samples
+set.seed(11)
+tune_ROSE <- tune.svm(condition~., data = trainset_ROSE, type="C-classification", kernel="radial", gamma = c(0.001, 0.01, 0.1), cost = c(0.5, 1, 5, 10, 15) ) 
+
+tune_ROSE$best.parameters$gamma
+tune_ROSE$best.parameters$cost
+```
+
+```{r}
+# Tune SVM cost and gamma parameters for ADASYN generated samples
+set.seed(12)
+tune_ada <- tune.svm(condition~., data = trainset_ADA, type="C-classification", kernel="radial", gamma = c(0.001, 0.01, 0.1), cost = c(0.5, 1, 5, 10, 15) ) 
+
+tune_ada$best.parameters$gamma
+tune_ada$best.parameters$cost
+```
+
+```{r}
+# Tune SVM cost and gamma parameters for undersampling
+set.seed(122)
+tune_under <- tune.svm(condition~., data = trainset_under, type="C-classification", kernel="radial", gamma = c(0.001, 0.01, 0.1), cost = c(0.5, 1, 5, 10, 15) ) 
+
+tune_under$best.parameters$gamma
+tune_under$best.parameters$cost
+```
