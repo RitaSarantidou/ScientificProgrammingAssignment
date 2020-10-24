@@ -1,0 +1,859 @@
+---
+title: "ScientificProgrammingAssignment"
+author: "Rita Sarantidou"
+date: "9/15/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+DIR<-setwd("C:/Users/ritaa/Scientific Programming")
+library(dplyr)
+library(DMwR)
+library(sm)
+library(FactoMineR)
+library(ggfortify)
+library(viridis)  # for colouring
+library(randomForest)
+library(rfUtilities)
+library(sp)
+library(ROSE)
+library(groupdata2)
+library(ROCR)
+library(UBL)
+library(e1071) 
+library(FSelector)
+```
+
+Importing the dataset, and transposing it to get 546 rows(individuals) and 47283 columns (probes).
+In addition, import the individuals' info table (age,gender,condition, etc).
+
+```{r}
+d <- read.csv('Adjustedexpressionvalues.txt',row.names = 1, header = F)
+d <-t(d)
+
+# View(df) # observe the data frame
+# dim(df)  # observe the dimensions of the dataset
+
+individuals <- read.csv('datasets_451195_852422_E-MTAB-8018.sdrf.txt', sep = '')
+individuals$part.<- as.character(individuals$part.)
+
+ind1 <-individuals[,4:6]  # keep columns that contain individuals' ID, gender, and age
+ind <- cbind(ind1, individuals[,10]) # combine above with individuals' condition (bipolar, normal, scizophrenic)
+```
+
+
+Merge the two data frames, i.e. gene expressions and individuals' information
+```{r}
+data <- merge(x = ind, y = d , by.x = "Characteristics.individual.", by.y = "NaN", all = F)
+names(data)[names(data) == 'individuals[, 10]'] <- 'condition'
+
+data <- data[order(data$condition),] # sorting the data frame based on the individuals' condition
+sum(is.na(data))   # check how many missing values are in the data
+table(data$condition)
+
+data$condition <- as.character(data$condition)
+data$condition[data$condition == "schizoaffective"]<-"schizophrenia"
+#data[data$condition == "schizoaffective"]<-"schizophrenia"
+#table(data$condition)
+
+data$condition <- as.factor(data$condition)
+table(data$condition)
+```
+
+Kennard and Stone method for partitioning
+
+subsetting the data to bipolar (bd), normal (norm), schizoaffective (sca), and scizophrenic (scz)
+```{r}
+df <- data
+
+bd <- subset(df, condition == "bipolar")
+norm <- subset(df, condition == "normal")
+scz <- subset(df, condition == "schizophrenia")
+```
+
+Density plots
+```{r}
+# for bipolar patients
+
+x <- bd[,5:47287]
+x<-knnImputation(x, k = 5, scale = T)
+anyNA(x)
+
+x <- as.numeric(unlist(x))
+
+h<-hist(x, breaks=10, col="red", xlab="DEG values",
+   main="Histogram with Normal Curve")
+xfit<-seq(min(x),max(x),length=40)
+yfit<-dnorm(xfit,mean=mean(x),sd=sd(x))
+yfit <- yfit*diff(h$mids[1:2])*length(x)
+lines(xfit, yfit, col="blue", lwd=2)
+```
+```{r}
+# for normal patients
+
+n <- norm[,5:47287]
+n<-knnImputation(n, k = 10, scale = T)
+anyNA(n)
+
+n <- as.numeric(unlist(n))
+
+hn<-hist(n, breaks=10, col="red", xlab="DEG values",
+   main="Histogram with Normal Curve")
+nxfit<-seq(min(n),max(n),length=40)
+nyfit<-dnorm(nxfit,mean=mean(n),sd=sd(n))
+nyfit <- nyfit*diff(hn$mids[1:2])*length(n)
+lines(nxfit, nyfit, col="blue", lwd=2)
+```
+
+
+```{r}
+# for schizophrenic patients
+
+s <- scz[,5:47287]
+s<-knnImputation(s, k = 10, scale = T)
+anyNA(s)
+
+s <- as.numeric(unlist(s))
+
+hs<-hist(s, breaks=10, col="red", xlab="DEG values",
+   main="Histogram with Normal Curve")
+sxfit<-seq(min(s),max(s),length=40)
+syfit<-dnorm(sxfit,mean=mean(s),sd=sd(s))
+syfit <- syfit*diff(hs$mids[1:2])*length(s)
+lines(sxfit, syfit, col="blue", lwd=2)
+```
+
+
+
+Compare the 3 densities, run in console window
+```{r}
+# g<-factor(c("bipolar", "normal", "schizophrenic", "schizoaffective"))
+# sm.density.compare(c(x,n,s,sa), g, band = F)
+# colfill<-c(2:(2+length(levels(g))))
+# legend(locator(1), levels(g), fill=colfill)
+```
+
+PCA analysis and visualization.
+
+Since an eigenvalue <1 would mean that the component actually explains less than a single explanatory variable we would like to discard those.
+If our data is well suited for PCA we should be able to discard these components while retaining at least 70–80% of cumulative variance.
+
+```{r}
+ddf <- knnImputation(df, k = 5, scale = T)  # check about the scalling again 
+anyNA(ddf)
+ddf <- ddf[,5:47287]
+
+ddf.pca <- prcomp(ddf, center = T, scale = T)
+summary(ddf.pca)
+
+eigen <- ddf.pca$sdev^2  # by squaring the eigenvalues we get the variance explained by each PC
+
+perc_variance<- as.vector(eigen/sum(eigen)*100)
+
+plot(cumsum(ddf.pca$sdev^2/sum(ddf.pca$sdev^2)), xlab = "PC #", ylab = "Amount of explained variance", main = "Cumulative variance plot") # plot cumulative explained variance
+abline(v = 370, col="blue", lty=5)
+abline(h = 0.80, col="blue", lty=5)
+legend("topleft", legend=c("Cut-off @ PC370"),
+       col=c("blue"), lty=5, cex=0.6)
+
+# screeplot(ddf.pca, type = "l", npcs = 500, main = "Screeplot of the first 400 PCs")
+# abline(h = 1, col="red", lty=5)
+# legend("topright", legend=c("Eigenvalue = 1"),
+#        col=c("red"), lty=5, cex=0.6)
+
+```
+
+
+PCA reduced data
+```{r}
+df_Reduced <- ddf.pca$x[,1:370]
+df_Reduced <- cbind(df_Reduced, as.numeric(df$condition)-1)
+colnames(df_Reduced)[371] <- "condition"
+```
+
+Partition the data in 80% training and 20% test sets.
+Data splitting using the partition function
+```{r}
+set.seed(2)
+
+df_Reduced<-as.data.frame(df_Reduced)
+
+df_Reduced$condition<- as.character(df_Reduced$condition)
+
+df_Reduced$condition[df_Reduced$condition == 0]<-"bipolar"
+df_Reduced$condition[df_Reduced$condition == 1]<-"normal"
+df_Reduced$condition[df_Reduced$condition == 2]<-"schizophrenia"
+table(df_Reduced$condition)
+
+df_Reduced$condition <- as.factor(df_Reduced$condition)
+
+bd <- subset(df_Reduced, condition == "bipolar")
+norm <- subset(df_Reduced, condition == "normal")
+scz <- subset(df_Reduced, condition == "schizophrenia")
+
+par <- rbind(bd,scz)
+
+parts <- partition(par, p = 0.2, cat_col = 'condition') # split the bipolar and schizophrenic individuals
+
+testset<-parts[[1]]
+table(testset$condition)
+
+trainset<-parts[[2]]
+table(trainset$condition)
+
+
+parts1 <- partition(norm, p = 0.2) # split the normal individuals, to randomly select a number of them for the test and training sets below
+norm1 <- parts1[[1]]
+norm2 <- parts1[[2]]
+
+random_norm1 <-sample_n(norm1, 15)
+
+random_norm2 <-sample_n(norm2, 200)
+
+testset<-rbind(testset[1:16,],random_norm1, testset[17:30,])
+table(testset$condition)
+trainset <-rbind(trainset[1:68,],random_norm2,trainset[69:125,])
+table(trainset$condition)
+
+```
+
+Balancing the classes using sythetic data for the training set.
+ROSE (Random Over-Sampling Examples)
+creates a sample of synthetic data by enlarging the features space of minority and majority class examples.
+
+```{r}
+set.seed(1)
+
+balance_bipolar <- ROSE(condition~., data = trainset[1:268,], N = 400)
+table(balance_bipolar$data$condition)
+bp <-balance_bipolar$data
+nm <- subset(bp, condition == "normal")
+bpd <- subset(bp, condition == "bipolar")
+
+balance_scz <- ROSE(condition~., data = trainset[69:325,], N = 400)
+table(balance_scz$data$condition)
+sc <-balance_scz$data
+
+nm2 <- subset(sc, condition == "normal")
+sch <- subset(sc, condition == "schizophrenia")
+
+nm3 <- sample_n(nm, 100)  # randomly select 100 rows
+nm4 <- sample_n(nm2,100)
+
+NM <- rbind(nm3, nm4)  # bind the normal subsets
+
+trainset_ROSE <- rbind(bpd,NM, sch)  # Bind the bipolar, normal, and schizophrenic subsets
+table(trainset_ROSE$condition)
+
+```
+ADASYN for balancing the classes samples and splitting the data in 80% train 20% test sets
+```{r}
+ set.seed(7)
+ ada <- as.data.frame(trainset)
+ ada$condition <- as.factor(ada$condition)
+ table(ada$condition)
+ 
+ trainset_ADA <- AdasynClassif(condition~., ada, beta = 1, baseClass = "normal")
+ table(trainset_ADA$condition)
+ 
+# trainset_ADA$condition <- as.character(trainset_ADA$condition)
+# 
+# trainset_ADA$condition[trainset_ADA$condition == 0]<-"bipolar"
+# trainset_ADA$condition[trainset_ADA$condition == 1]<-"normal"
+# trainset_ADA$condition[trainset_ADA$condition == 2]<-"schizophrenia"
+# 
+# trainset_ADA$condition <- as.factor(trainset_ADA$condition)
+# table(trainset_ADA$condition)
+```
+
+
+undersampling the normal (majority) class
+```{r}
+set.seed(123)
+nm <- subset(trainset, condition == "normal")
+bpd <- subset(trainset, condition == "bipolar")
+sc <- subset(trainset, condition == "schizophrenia")
+
+under_subset <-rbind(bpd,nm)
+
+trainset_un <- ovun.sample(condition~., under_subset, method="under", N = 130)
+trainset_under <- rbind(trainset_un$data,sc)
+table(trainset_under$condition)
+
+```
+
+
+
+
+```{r}
+
+balance_bipolar <- ROSE(condition~., data = testset[1:31,], N = 60)
+table(balance_bipolar$data$condition)
+bp <-balance_bipolar$data
+nm <- subset(bp, condition =="normal")
+bpd <- subset(bp, condition == "bipolar")
+
+balance_scz <- ROSE(condition~., data = testset[17:45,], N = 60)
+table(balance_scz$data$condition)
+sc <-balance_scz$data
+
+nm2 <- subset(sc, condition =="normal")
+sch <- subset(sc, condition == "schizophrenia")
+
+nm3 <- sample_n(nm, 15)  # randomly select 150 rows
+nm4 <- sample_n(nm2, 15)
+
+NM <- rbind(nm3, nm4)  # bind the normal subsets
+
+testset_ROSE <- rbind(bpd,NM, sch)  # Bind the bipolar, normal, and schizophrenic subsets
+table(testset_ROSE$condition)
+#str(df_red)
+# testset_ROSE$condition<- as.character(testset_ROSE$condition)
+# 
+# testset_ROSE$condition[testset_ROSE$condition == 0]<-"bipolar"
+# testset_ROSE$condition[testset_ROSE$condition == 1]<-"normal"
+# testset_ROSE$condition[testset_ROSE$condition == 2]<-"schizophrenia"
+# table(testset_ROSE$condition)
+# 
+# testset_ROSE$condition <- as.factor(testset_ROSE$condition)
+
+```
+```{r}
+ set.seed(77)
+ ada <- as.data.frame(testset)
+ ada$condition <- as.factor(ada$condition)
+ testset_ADA <- AdasynClassif(condition~., ada, beta = 1, baseClass = "normal")
+ table(testset_ADA$condition)
+ 
+# testset_ADA$condition <- as.character(testset_ADA$condition)
+# 
+# testset_ADA$condition[testset_ADA$condition == 0]<-"bipolar"
+# testset_ADA$condition[testset_ADA$condition == 1]<-"normal"
+# testset_ADA$condition[testset_ADA$condition == 2]<-"schizophrenia"
+# 
+# testset_ADA$condition <- as.factor(testset_ADA$condition)
+# table(testset_ADA$condition)
+```
+
+
+
+Random Forest classification for ROSE created data
+
+```{r}
+# Using For loop to identify the right mtry for model
+set.seed(3)
+a=c()
+i=5
+for (i in 3:20) {
+  model <- randomForest(condition ~ ., data = trainset_ROSE, ntree = 500, mtry = i, importance = TRUE)
+  predValid <- predict(model, testset_ROSE, type = "class")
+  a[i-2] = mean(predValid == testset_ROSE$condition)
+}
+a
+
+plot(3:20 ,a)
+```
+
+```{r}
+#Tuning mtry parameter 
+
+set.seed(4)
+bestmtry <- tuneRF(trainset_ROSE, trainset_ROSE$condition, mtryStart = 3, stepFactor=1.5, improve=1e-5, ntree=500)
+print(bestmtry)
+```
+
+
+nodesize 5:10
+```{r}
+set.seed(5)
+
+node<-c(1:10)
+acc<-c()
+
+for (i in 1:10){
+   
+rf <- randomForest(condition ~ ., data=trainset_ROSE, ntree = 500, mtry= 19, importance = T, nodesize = node[i])
+#rf <- rfcv(trainset, trainset$condition, cv.fold = 5)
+prediction_for_rose <- predict(rf,testset[,-371])
+acc[i] <-mean(prediction_for_rose == testset$condition)
+}
+#acc
+
+best_node <- match(max(acc),acc) # to get the best node size
+
+rf <- randomForest(condition ~ ., data=trainset_ROSE, ntree = 500, mtry= 19, importance = T, nodesize = best_node)
+
+rf
+
+varImpPlot(rf, n.var = 5)
+
+prediction_for_rose <- predict(rf,testset[,-371])
+
+ac <-mean(prediction_for_rose == testset$condition)
+
+# Here we train the random forest using the undersampled training set
+rf_under <- randomForest(condition ~ ., data=trainset_under, ntree = 500, mtry= 19, importance = T, nodesize = best_node)
+prediction_for_under <- predict(rf_under,testset[,-371])
+
+varImpPlot(rf_under, n.var = 5)
+ac_under <-mean(prediction_for_under == testset$condition)
+
+ac
+ac_under
+
+```
+
+ROC curves and AUC
+```{r}
+set.seed(6)
+# Calculate the probability of new observations belonging to each class
+# prediction_for_roc_curve will be a matrix with dimensions data_set_size x number_of_classes
+prediction_for_roc_curve <- predict(rf,testset[,-371],type="prob")
+# Use pretty colours:
+pretty_colours <- c("#F8766D","#00BA38","#619CFF")
+# Specify the different classes 
+classes <- levels(testset$condition)
+# For each class
+for (i in 1:3)
+{
+ # Define which observations belong to class[i]
+ true_values <- ifelse(testset[,371]==classes[i],1,0)
+ # Assess the performance of classifier for class[i]
+ pred <- prediction(prediction_for_roc_curve[,i],true_values)
+ perf <- performance(pred, "tpr", "fpr")
+ if (i==1)
+ {
+     plot(perf,main="ROC Curve RF ROSE",col=pretty_colours[i]) 
+ }
+ else
+ {
+     plot(perf,main="ROC Curve RF ROSE",col=pretty_colours[i],add=TRUE) 
+ }
+
+ # Calculate the AUC and print it to screen
+ auc.perf <- performance(pred, measure = "auc")
+ print(auc.perf@y.values)
+}
+ legend(0.6, 0.4, legend=classes,
+       col=pretty_colours, lty=1:2, cex=0.8)
+```
+
+
+```{r}
+set.seed(66)
+# Calculate the probability of new observations belonging to each class
+# prediction_for_roc_curve will be a matrix with dimensions data_set_size x number_of_classes
+prediction_for_roc_curve <- predict(rf_under,testset[,-371],type="prob")
+# Use pretty colours:
+pretty_colours <- c("#F8766D","#00BA38","#619CFF")
+# Specify the different classes 
+classes <- levels(testset$condition)
+# For each class
+for (i in 1:3)
+{
+ # Define which observations belong to class[i]
+ true_values <- ifelse(testset[,371]==classes[i],1,0)
+ # Assess the performance of classifier for class[i]
+ pred <- prediction(prediction_for_roc_curve[,i],true_values)
+ perf <- performance(pred, "tpr", "fpr")
+ if (i==1)
+ {
+     plot(perf,main="ROC Curve RF undersampled",col=pretty_colours[i]) 
+ }
+ else
+ {
+     plot(perf,main="ROC Curve RF undersampled",col=pretty_colours[i],add=TRUE) 
+ }
+
+ # Calculate the AUC and print it to screen
+ auc.perf <- performance(pred, measure = "auc")
+ print(auc.perf@y.values)
+}
+ legend(0.6, 0.4, legend=classes,
+       col=pretty_colours, lty=1:2, cex=0.8)
+```
+
+
+Random Forest on ADASYN data
+
+```{r}
+set.seed(8)
+#Tuning mtry parameter 
+
+bestmtry_ada <- tuneRF(trainset_ADA, trainset_ADA$condition, mtryStart = 3, stepFactor=1.5, improve=1e-5, ntree=500)
+print(bestmtry_ada)
+```
+
+```{r}
+set.seed(9)
+
+# node<-c(1:10)
+ACC<-c()
+
+for (i in 1:10){
+   
+rf <- randomForest(condition ~ ., data=trainset_ADA, ntree = 500, mtry= 19, importance = T, nodesize = node[i])
+#rf <- rfcv(trainset, trainset$condition, cv.fold = 5)
+prediction_for_ada <- predict(rf,testset[,-371])
+ACC[i] <-mean(prediction_for_ada == testset$condition)
+}
+#acc
+
+best_n <- match(max(ACC),ACC) # to get the best node size
+
+
+
+rf_ada <- randomForest(condition ~ ., data=trainset_ADA, ntree = 500, mtry= 28, importance = T, nodesize=best_n)
+#rf <- rfcv(trainset, trainset$condition, cv.fold = 5)
+rf_ada
+
+varImpPlot(rf_ada, n.var = 5)
+
+prediction_for_ada <- predict(rf_ada,testset[,-371])
+#table(observed=testset_ADA$condition,predicted=prediction_for_ada)
+
+#  
+# testset$condition <- as.character(testset$condition)
+# 
+# testset$condition[testset$condition == 0]<-"bipolar"
+# testset$condition[testset$condition == 1]<-"normal"
+# testset$condition[testset$condition == 2]<-"schizophrenia"
+
+
+Accuracy_ada <- mean(prediction_for_ada == testset$condition)
+Accuracy_ada
+# Accuracy_rose <- mean(prediction_for_rose== testset_ROSE$condition)
+# Accuracy_rose
+
+
+```
+
+ROC curves and AUC for ADASYN data
+```{r}
+set.seed(10)
+# Calculate the probability of new observations belonging to each class
+# prediction_for_roc_curve will be a matrix with dimensions data_set_size x number_of_classes
+prediction_for_roc_ada <- predict(rf_ada,testset[,-371],type="prob")
+# Use pretty colours:
+pretty_colours <- c("#F8766D","#00BA38","#619CFF")
+
+# Specify the different classes 
+classes <- levels(testset$condition)
+
+# For each class
+for (i in 1:3)
+{
+ # Define which observations belong to class[i]
+ true_values <- ifelse(testset[,371]==classes[i],1,0)
+ # Assess the performance of classifier for class[i]
+ pred <- prediction(prediction_for_roc_ada[,i],true_values)
+ perf <- performance(pred, "tpr", "fpr")
+ if (i==1)
+ {
+     plot(perf,main="ROC Curve RF ADASYN",col=pretty_colours[i]) 
+ }
+ else
+ {
+     plot(perf,main="ROC Curve RF ADASYN",col=pretty_colours[i],add=TRUE) 
+ }
+
+ # Calculate the AUC and print it to screen
+ auc.perf <- performance(pred, measure = "auc")
+ print(auc.perf@y.values)
+}
+ legend(0.6, 0.4, legend=classes,
+       col=pretty_colours, lty=1:2, cex=0.8)
+
+```
+
+
+
+SVM tuning parameters
+```{r}
+# Tune SVM cost and gamma parameters for ROSE generated samples
+set.seed(11)
+tune_ROSE <- tune.svm(condition~., data = trainset_ROSE, type="C-classification", kernel="radial", gamma = c(0.001, 0.01, 0.1), cost = c(0.5, 1, 5, 10, 15) ) 
+
+tune_ROSE$best.parameters$gamma
+tune_ROSE$best.parameters$cost
+```
+
+```{r}
+# Tune SVM cost and gamma parameters for ADASYN generated samples
+set.seed(12)
+tune_ada <- tune.svm(condition~., data = trainset_ADA, type="C-classification", kernel="radial", gamma = c(0.001, 0.01, 0.1), cost = c(0.5, 1, 5, 10, 15) ) 
+
+tune_ada$best.parameters$gamma
+tune_ada$best.parameters$cost
+```
+
+```{r}
+# Tune SVM cost and gamma parameters for undersampling
+set.seed(122)
+tune_under <- tune.svm(condition~., data = trainset_under, type="C-classification", kernel="radial", gamma = c(0.001, 0.01, 0.1), cost = c(0.5, 1, 5, 10, 15) ) 
+
+tune_under$best.parameters$gamma
+tune_under$best.parameters$cost
+```
+
+Building SVM models
+```{r}
+svm_ROSE <- svm(condition~.,
+                data = trainset_ROSE,
+               type = "C-classification", kernel = "radial", gamma = tune_ROSE$best.parameters$gamma,
+               cost = tune_ROSE$best.parameters$cost,
+               probability = T,
+               cross = 5
+             )
+
+pred_svm_ROSE <- predict(svm_ROSE, testset)
+Accuracy_svm_ROSE <- mean(pred_svm_ROSE == testset$condition)
+Accuracy_svm_ROSE
+summary(svm_ROSE)
+```
+
+```{r}
+svm_ada <- svm(condition~.,
+                data = trainset_ADA,
+               type = "C-classification", kernel = "radial", gamma = tune_ada$best.parameters$gamma,
+               cost = tune_ada$best.parameters$cost,
+               probability = T,
+               cross = 5
+             )
+
+pred_svm_ada <- predict(svm_ada, testset)
+Accuracy_svm_ada <- mean(pred_svm_ada == testset$condition)
+Accuracy_svm_ada
+summary(svm_ada)
+```
+
+```{r}
+svm_under <- svm(condition~.,
+                data = trainset_under,
+               type = "C-classification", kernel = "radial", gamma = tune_under$best.parameters$gamma,
+               cost = tune_under$best.parameters$cost,
+               probability = T,
+               cross = 5
+             )
+
+pred_svm_under <- predict(svm_under, testset)
+Accuracy_svm_under <- mean(pred_svm_under == testset$condition)
+Accuracy_svm_under
+summary(svm_under)
+```
+
+Plot ROC for SVM
+```{r}
+set.seed(13)
+# Calculate the probability of new observations belonging to each class
+# prediction_for_roc_curve will be a matrix with dimensions data_set_size x number_of_classes
+prediction_for_roc_svm <- predict(svm_ROSE,testset,type="prob", probability = T)
+svm_attr <- attr(prediction_for_roc_svm, "probabilities")
+
+# Use pretty colours:
+pretty_colours <- c("#F8766D","#00BA38","#619CFF")
+
+# Specify the different classes 
+classes <- levels(testset$condition)
+
+# For each class
+for (i in 1:3)
+{
+ # Define which observations belong to class[i]
+ true_values <- ifelse(testset[,371]==classes[i],1,0)
+ # Assess the performance of classifier for class[i]
+ 
+ pred <- prediction(svm_attr[,i],true_values)
+ perf <- performance(pred, "tpr", "fpr")
+ if (i==1)
+ {
+     plot(perf,main="ROC Curve SVM ROSE",col=pretty_colours[i]) 
+ }
+ else
+ {
+     plot(perf,main="ROC Curve SVM ROSE",col=pretty_colours[i],add=TRUE) 
+ }
+
+ # Calculate the AUC and print it to screen
+ auc.perf <- performance(pred, measure = "auc")
+ print(auc.perf@y.values)
+}
+
+ legend(0.6, 0.4, legend=classes,
+       col=pretty_colours, lty=1:2, cex=0.8)
+
+```
+
+
+```{r}
+set.seed(14)
+# Calculate the probability of new observations belonging to each class
+# prediction_for_roc_curve will be a matrix with dimensions data_set_size x number_of_classes
+prediction_for_roc_svm <- predict(svm_ada,testset,type="prob", probability = T)
+svm_attr <- attr(prediction_for_roc_svm, "probabilities")
+
+# Use pretty colours:
+pretty_colours <- c("#F8766D","#00BA38","#619CFF")
+
+# Specify the different classes 
+classes <- levels(testset$condition)
+
+# For each class
+for (i in 1:3)
+{
+ # Define which observations belong to class[i]
+ true_values <- ifelse(testset[,371]==classes[i],1,0)
+ # Assess the performance of classifier for class[i]
+ 
+ pred <- prediction(svm_attr[,i],true_values)
+ perf <- performance(pred, "tpr", "fpr")
+ if (i==1)
+ {
+     plot(perf,main="ROC Curve SVM ADASYN",col=pretty_colours[i]) 
+ }
+ else
+ {
+     plot(perf,main="ROC Curve SVM ADASYN",col=pretty_colours[i],add=TRUE) 
+ }
+
+ # Calculate the AUC and print it to screen
+ auc.perf <- performance(pred, measure = "auc")
+ print(auc.perf@y.values)
+}
+
+ legend(0.6, 0.4, legend=classes,
+       col=pretty_colours, lty=1:2, cex=0.8)
+
+```
+```{r}
+set.seed(144)
+# Calculate the probability of new observations belonging to each class
+# prediction_for_roc_curve will be a matrix with dimensions data_set_size x number_of_classes
+prediction_for_roc_svm <- predict(svm_under,testset,type="prob", probability = T)
+svm_attr <- attr(prediction_for_roc_svm, "probabilities")
+
+# Use pretty colours:
+pretty_colours <- c("#F8766D","#00BA38","#619CFF")
+
+# Specify the different classes 
+classes <- levels(testset$condition)
+
+# For each class
+for (i in 1:3)
+{
+ # Define which observations belong to class[i]
+ true_values <- ifelse(testset[,371]==classes[i],1,0)
+ # Assess the performance of classifier for class[i]
+ 
+ pred <- prediction(svm_attr[,i],true_values)
+ perf <- performance(pred, "tpr", "fpr")
+ if (i==1)
+ {
+     plot(perf,main="ROC Curve SVM undersampling",col=pretty_colours[i]) 
+ }
+ else
+ {
+     plot(perf,main="ROC Curve SVM undersampling",col=pretty_colours[i],add=TRUE) 
+ }
+
+ # Calculate the AUC and print it to screen
+ auc.perf <- performance(pred, measure = "auc")
+ print(auc.perf@y.values)
+}
+
+ legend(0.6, 0.4, legend=classes,
+       col=pretty_colours, lty=1:2, cex=0.8)
+
+```
+
+
+
+Plot SVM 
+```{r}
+plot(svm_ROSE, trainset, PC1 ~ PC3)
+```
+
+
+
+```{r}
+
+fviz_eig(ddf.pca)  # Visualize eigenvalues (scree plot). Show the percentage of variances explained by each principal component.
+
+groups <- df$condition
+fviz_pca_ind(ddf.pca,
+             col.ind = groups, # color by groups
+             palette = viridis(4),
+             addEllipses = TRUE, # Concentration ellipses
+             ellipse.type = "confidence",
+             legend.title = "Groups",
+             repel = TRUE
+             )
+```
+
+```{r}
+fviz_pca_var(ddf.pca,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+```
+
+```{r}
+set.seed(123)
+
+PCAcolors <- c(viridis(3))[as.integer(groups)]
+PCAscores <- ddf.pca$x
+PCAloadings <- ddf.pca$rotation
+
+par(mfrow=c(1,1))
+plot(PCAscores[,1:2],  # x and y data
+     pch=4,           # point shape
+     col=PCAcolors,    # point border color
+     bg=PCAcolors,     # point color
+     cex=1,          # point size
+     main="Scores"     # title of plot
+)
+
+legend("topright",                                # position of legend
+       legend=levels(groups),                       # legend display
+       pch=4,                                    # point shape
+       pt.bg=c("#440154FF", "#21908CFF", "#FDE725FF"),    # point colors
+       pt.cex=1.5,                                # point size
+       col = c("#440154FF", "#21908CFF", "#FDE725FF")    # point border color
+)
+
+plot(PCAloadings[,1:2],   # x and y data
+     pch=21,              # point shape
+     bg="black",          # point color
+     cex=0.1,               # point size
+     main="Loadings"      # title of plot
+)
+text(PCAloadings[,1:2],             # sets position of labels
+     labels=rownames(PCAloadings)   # print labels
+)
+```
+
+Plot important PCs based on the randomf forest classification
+```{r}
+
+loadings <- ddf.pca$rotation
+lim1 <- subset(loadings[,38], loadings[,38]> 0.02)
+lim2 <- subset(loadings[,38], loadings[,38]< -0.02)
+
+plot(ddf.pca$rotation[,38], 
+     main = "PC38",
+     ylab = "Variable Loadings",
+     xlab = "DEG")
+abline(h = 0.02, col = "red")
+abline(h = -0.02, col = "red")
+text(x= 0:length(ddf.pca$rotation[,38]), 
+     labels = names(lim1), 
+     pos =3, cex = 0.2, col = 'blue')
+
+
+
+```
+
+
+
