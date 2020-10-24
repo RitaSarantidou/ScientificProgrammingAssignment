@@ -1,0 +1,19 @@
+ADASYN for balancing the classes samples
+```{r}
+ set.seed(7)
+ ada <- as.data.frame(trainset)
+ ada$condition <- as.factor(ada$condition)
+ table(ada$condition)
+ 
+ trainset_ADA <- AdasynClassif(condition~., ada, beta = 1, baseClass = "normal")
+ table(trainset_ADA$condition)
+ 
+# trainset_ADA$condition <- as.character(trainset_ADA$condition)
+# 
+# trainset_ADA$condition[trainset_ADA$condition == 0]<-"bipolar"
+# trainset_ADA$condition[trainset_ADA$condition == 1]<-"normal"
+# trainset_ADA$condition[trainset_ADA$condition == 2]<-"schizophrenia"
+# 
+# trainset_ADA$condition <- as.factor(trainset_ADA$condition)
+# table(trainset_ADA$condition)
+```
