@@ -1,0 +1,11 @@
+```{r}
+rf <- randomForest(condition ~ ., data=trainset_ROSE, ntree = 500, mtry= 19, importance = T, nodesize = best_node)
+
+rf
+
+varImpPlot(rf, n.var = 5)
+
+prediction_for_rose <- predict(rf,testset[,-371])
+
+ac <-mean(prediction_for_rose == testset$condition)
+```
