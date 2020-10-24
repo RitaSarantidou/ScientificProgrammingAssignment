@@ -1,0 +1,45 @@
+Partition the data in 80% training and 20% test sets.
+Data splitting using the partition function
+```{r}
+set.seed(2)
+
+df_Reduced<-as.data.frame(df_Reduced)
+
+df_Reduced$condition<- as.character(df_Reduced$condition)
+
+df_Reduced$condition[df_Reduced$condition == 0]<-"bipolar"
+df_Reduced$condition[df_Reduced$condition == 1]<-"normal"
+df_Reduced$condition[df_Reduced$condition == 2]<-"schizophrenia"
+table(df_Reduced$condition)
+
+df_Reduced$condition <- as.factor(df_Reduced$condition)
+
+bd <- subset(df_Reduced, condition == "bipolar")
+norm <- subset(df_Reduced, condition == "normal")
+scz <- subset(df_Reduced, condition == "schizophrenia")
+
+par <- rbind(bd,scz)
+
+parts <- partition(par, p = 0.2, cat_col = 'condition') # split the bipolar and schizophrenic individuals
+
+testset<-parts[[1]]
+table(testset$condition)
+
+trainset<-parts[[2]]
+table(trainset$condition)
+
+
+parts1 <- partition(norm, p = 0.2) # split the normal individuals, to randomly select a number of them for the test and training sets below
+norm1 <- parts1[[1]]
+norm2 <- parts1[[2]]
+
+random_norm1 <-sample_n(norm1, 15)
+
+random_norm2 <-sample_n(norm2, 200)
+
+testset<-rbind(testset[1:16,],random_norm1, testset[17:30,])
+table(testset$condition)
+trainset <-rbind(trainset[1:68,],random_norm2,trainset[69:125,])
+table(trainset$condition)
+
+```
