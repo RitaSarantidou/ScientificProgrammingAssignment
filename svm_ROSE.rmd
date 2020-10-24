@@ -1,0 +1,14 @@
+```{r}
+svm_ROSE <- svm(condition~.,
+                data = trainset_ROSE,
+               type = "C-classification", kernel = "radial", gamma = tune_ROSE$best.parameters$gamma,
+               cost = tune_ROSE$best.parameters$cost,
+               probability = T,
+               cross = 5
+             )
+
+pred_svm_ROSE <- predict(svm_ROSE, testset)
+Accuracy_svm_ROSE <- mean(pred_svm_ROSE == testset$condition)
+Accuracy_svm_ROSE
+summary(svm_ROSE)
+```
