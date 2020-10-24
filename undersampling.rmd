@@ -1,0 +1,14 @@
+undersampling the normal (majority) class
+```{r}
+set.seed(123)
+nm <- subset(trainset, condition == "normal")
+bpd <- subset(trainset, condition == "bipolar")
+sc <- subset(trainset, condition == "schizophrenia")
+
+under_subset <-rbind(bpd,nm)
+
+trainset_un <- ovun.sample(condition~., under_subset, method="under", N = 130)
+trainset_under <- rbind(trainset_un$data,sc)
+table(trainset_under$condition)
+
+```
