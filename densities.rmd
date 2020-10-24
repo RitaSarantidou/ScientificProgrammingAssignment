@@ -1,0 +1,70 @@
+subsetting the data to bipolar (bd), normal (norm), schizoaffective (sca), and scizophrenic (scz)
+```{r}
+df <- data
+
+bd <- subset(df, condition == "bipolar")
+norm <- subset(df, condition == "normal")
+scz <- subset(df, condition == "schizophrenia")
+```
+
+Density plots
+```{r}
+# for bipolar patients
+
+x <- bd[,5:47287]
+x<-knnImputation(x, k = 5, scale = T)
+anyNA(x)
+
+x <- as.numeric(unlist(x))
+
+h<-hist(x, breaks=10, col="red", xlab="DEG values",
+   main="Histogram with Normal Curve")
+xfit<-seq(min(x),max(x),length=40)
+yfit<-dnorm(xfit,mean=mean(x),sd=sd(x))
+yfit <- yfit*diff(h$mids[1:2])*length(x)
+lines(xfit, yfit, col="blue", lwd=2)
+```
+```{r}
+# for normal patients
+
+n <- norm[,5:47287]
+n<-knnImputation(n, k = 10, scale = T)
+anyNA(n)
+
+n <- as.numeric(unlist(n))
+
+hn<-hist(n, breaks=10, col="red", xlab="DEG values",
+   main="Histogram with Normal Curve")
+nxfit<-seq(min(n),max(n),length=40)
+nyfit<-dnorm(nxfit,mean=mean(n),sd=sd(n))
+nyfit <- nyfit*diff(hn$mids[1:2])*length(n)
+lines(nxfit, nyfit, col="blue", lwd=2)
+```
+
+
+```{r}
+# for schizophrenic patients
+
+s <- scz[,5:47287]
+s<-knnImputation(s, k = 10, scale = T)
+anyNA(s)
+
+s <- as.numeric(unlist(s))
+
+hs<-hist(s, breaks=10, col="red", xlab="DEG values",
+   main="Histogram with Normal Curve")
+sxfit<-seq(min(s),max(s),length=40)
+syfit<-dnorm(sxfit,mean=mean(s),sd=sd(s))
+syfit <- syfit*diff(hs$mids[1:2])*length(s)
+lines(sxfit, syfit, col="blue", lwd=2)
+```
+
+
+
+Compare the 3 densities, run in console window
+```{r}
+# g<-factor(c("bipolar", "normal", "schizophrenic", "schizoaffective"))
+# sm.density.compare(c(x,n,s,sa), g, band = F)
+# colfill<-c(2:(2+length(levels(g))))
+# legend(locator(1), levels(g), fill=colfill)
+```
