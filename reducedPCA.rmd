@@ -1,0 +1,6 @@
+PCA reduced data
+```{r}
+df_Reduced <- ddf.pca$x[,1:370]
+df_Reduced <- cbind(df_Reduced, as.numeric(df$condition)-1)
+colnames(df_Reduced)[371] <- "condition"
+```
