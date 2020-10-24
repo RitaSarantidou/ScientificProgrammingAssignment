@@ -1,0 +1,29 @@
+Balancing the classes using sythetic data for the training set.
+ROSE (Random Over-Sampling Examples)
+creates a sample of synthetic data by enlarging the features space of minority and majority class examples.
+
+```{r}
+set.seed(1)
+
+balance_bipolar <- ROSE(condition~., data = trainset[1:268,], N = 400)
+table(balance_bipolar$data$condition)
+bp <-balance_bipolar$data
+nm <- subset(bp, condition == "normal")
+bpd <- subset(bp, condition == "bipolar")
+
+balance_scz <- ROSE(condition~., data = trainset[69:325,], N = 400)
+table(balance_scz$data$condition)
+sc <-balance_scz$data
+
+nm2 <- subset(sc, condition == "normal")
+sch <- subset(sc, condition == "schizophrenia")
+
+nm3 <- sample_n(nm, 100)  # randomly select 100 rows
+nm4 <- sample_n(nm2,100)
+
+NM <- rbind(nm3, nm4)  # bind the normal subsets
+
+trainset_ROSE <- rbind(bpd,NM, sch)  # Bind the bipolar, normal, and schizophrenic subsets
+table(trainset_ROSE$condition)
+
+```
