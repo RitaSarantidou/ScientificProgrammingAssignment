@@ -1,0 +1,29 @@
+PCA analysis and visualization.
+
+Since an eigenvalue <1 would mean that the component actually explains less than a single explanatory variable we would like to discard those.
+If our data is well suited for PCA we should be able to discard these components while retaining at least 70–80% of cumulative variance.
+
+```{r}
+ddf <- knnImputation(df, k = 5, scale = T)  # imputing NAs
+anyNA(ddf)
+ddf <- ddf[,5:47287]
+
+ddf.pca <- prcomp(ddf, center = T, scale = T)
+summary(ddf.pca)
+
+eigen <- ddf.pca$sdev^2  # by squaring the eigenvalues we get the variance explained by each PC
+
+perc_variance<- as.vector(eigen/sum(eigen)*100)
+
+plot(cumsum(ddf.pca$sdev^2/sum(ddf.pca$sdev^2)), xlab = "PC #", ylab = "Amount of explained variance", main = "Cumulative variance plot") # plot cumulative explained variance
+abline(v = 370, col="blue", lty=5)
+abline(h = 0.80, col="blue", lty=5)
+legend("topleft", legend=c("Cut-off @ PC370"),
+       col=c("blue"), lty=5, cex=0.6)
+
+# screeplot(ddf.pca, type = "l", npcs = 500, main = "Screeplot of the first 400 PCs")
+# abline(h = 1, col="red", lty=5)
+# legend("topright", legend=c("Eigenvalue = 1"),
+#        col=c("red"), lty=5, cex=0.6)
+
+```
