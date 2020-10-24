@@ -805,11 +805,24 @@ plot(ddf.pca$rotation[,38],
      xlab = "DEG")
 abline(h = 0.02, col = "red")
 abline(h = -0.02, col = "red")
-text(x= 0:length(ddf.pca$rotation[,38]), 
-     labels = names(lim1), 
-     pos =3, cex = 0.2, col = 'blue')
+# text(x= 0:length(ddf.pca$rotation[,38]), 
+#      labels = names(lim1), 
+#      pos =3, cex = 0.2, col = 'blue')
+
+# For PC43
+lim3 <- subset(loadings[,43], loadings[,43]> 0.02)
+lim4 <- subset(loadings[,43], loadings[,43]< -0.02)
 
 
+plot(ddf.pca$rotation[,43], 
+     main = "PC43",
+     ylab = "Variable Loadings",
+     xlab = "DEG")
+abline(h = 0.02, col = "red")
+abline(h = -0.02, col = "red")
+# text(x= 0:length(ddf.pca$rotation[,43]), 
+#      labels = names(lim1), 
+#      pos =3, cex = 0.2, col = 'blue')
 
 ```
 
