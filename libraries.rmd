@@ -1,0 +1,19 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(dplyr)
+library(DMwR)
+library(sm)
+library(FactoMineR)
+library(ggfortify)
+library(viridis)  # for colouring
+library(randomForest)
+library(rfUtilities)
+library(sp)
+library(ROSE)
+library(groupdata2)
+library(ROCR)
+library(UBL)
+library(e1071) 
+library(FSelector)
+```
