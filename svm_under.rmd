@@ -1,0 +1,14 @@
+```{r}
+svm_under <- svm(condition~.,
+                data = trainset_under,
+               type = "C-classification", kernel = "radial", gamma = tune_under$best.parameters$gamma,
+               cost = tune_under$best.parameters$cost,
+               probability = T,
+               cross = 5
+             )
+
+pred_svm_under <- predict(svm_under, testset)
+Accuracy_svm_under <- mean(pred_svm_under == testset$condition)
+Accuracy_svm_under
+summary(svm_under)
+```
